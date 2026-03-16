@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getReplicateClient } from "@/lib/replicate";
 import { getConfig, saveConfig } from "@/lib/config";
+import { put } from "@vercel/blob";
+import JSZip from "jszip";
 
 function isAuthorized(req: NextRequest): boolean {
   const password = req.headers.get("x-admin-password");
@@ -10,6 +12,27 @@ function isAuthorized(req: NextRequest): boolean {
 interface TrainBody {
   photoUrls: string[];
   triggerWord?: string;
+}
+
+async function buildZipUrl(photoUrls: string[]): Promise<string> {
+  const zip = new JSZip();
+
+  await Promise.all(
+    photoUrls.map(async (url, i) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to fetch photo: ${url}`);
+      const buffer = await res.arrayBuffer();
+      const ext = url.split(".").pop()?.split("?")[0] ?? "jpg";
+      zip.file(`photo_${i + 1}.${ext}`, buffer);
+    })
+  );
+
+  const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+  const blob = await put(`training-zips/training-${Date.now()}.zip`, zipBuffer, {
+    access: "public",
+    contentType: "application/zip",
+  });
+  return blob.url;
 }
 
 export async function POST(req: NextRequest) {
@@ -38,10 +61,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // flux-dev-lora-trainer requires a zip file URL
+    const zipUrl = await buildZipUrl(body.photoUrls);
+
     const replicate = getReplicateClient();
     const destination = replicateModelName as `${string}/${string}`;
 
-    // Start LoRA training — destination model must already exist on Replicate
     const training = await replicate.trainings.create(
       "ostris",
       "flux-dev-lora-trainer",
@@ -49,8 +74,7 @@ export async function POST(req: NextRequest) {
       {
         destination,
         input: {
-          // flux-dev-lora-trainer accepts a newline-separated list of image URLs
-          input_images: body.photoUrls.join("\n"),
+          input_images: zipUrl,
           trigger_word: triggerWord,
           steps: 1000,
           lora_rank: 16,
@@ -63,7 +87,6 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Store the training ID and destination so admin can check status
     const config = await getConfig();
     await saveConfig({ ...config, replicateModelId: `${destination}:PENDING-${training.id}` });
 
@@ -96,12 +119,10 @@ export async function GET(req: NextRequest) {
     const replicate = getReplicateClient();
     const training = await replicate.trainings.get(trainingId);
 
-    // If training succeeded, extract the model version and save it
     if (training.status === "succeeded" && training.output) {
       const output = training.output as { version?: string };
       if (output.version) {
         const config = await getConfig();
-        // Extract destination from the stored pending model ID
         const stored = config.replicateModelId;
         const destination = stored.split(":PENDING-")[0];
         const fullModelId = `${destination}:${output.version}`;
