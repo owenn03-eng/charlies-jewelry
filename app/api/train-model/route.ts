@@ -40,11 +40,16 @@ export async function POST(req: NextRequest) {
   try {
     const replicate = getReplicateClient();
 
-    // Create the model destination on Replicate
     const modelName = `charlies-jewelry-${Date.now()}`;
     const destination = `${replicateUsername}/${modelName}` as `${string}/${string}`;
 
-    // Start SDXL LoRA training
+    // Replicate requires the destination model to exist before training
+    await replicate.models.create(replicateUsername, modelName, {
+      visibility: "private",
+      hardware: "gpu-a40-large",
+    });
+
+    // Start LoRA training
     const training = await replicate.trainings.create(
       "ostris",
       "flux-dev-lora-trainer",
@@ -52,7 +57,8 @@ export async function POST(req: NextRequest) {
       {
         destination,
         input: {
-          input_images: body.photoUrls.join(","),
+          // flux-dev-lora-trainer accepts a newline-separated list of image URLs
+          input_images: body.photoUrls.join("\n"),
           trigger_word: triggerWord,
           steps: 1000,
           lora_rank: 16,
