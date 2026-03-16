@@ -77,8 +77,9 @@ export async function POST(req: NextRequest) {
       message: "Training started. This typically takes 20–40 minutes. Check the status below.",
     });
   } catch (err) {
-    console.error("train-model error:", err);
-    return NextResponse.json({ error: "Training failed to start" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("train-model error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
