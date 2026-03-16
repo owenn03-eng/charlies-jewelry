@@ -55,9 +55,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const imageUrl = Array.isArray(output)
-      ? (output as unknown as string[])[0]
-      : (output as unknown as string);
+    // Replicate v1.x returns FileOutput objects with a .url() method; older versions return strings.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function toUrl(v: any): string {
+      if (typeof v === "string") return v;
+      if (v && typeof v.url === "function") return v.url() as string;
+      if (v && typeof v.toString === "function") return v.toString() as string;
+      return "";
+    }
+    const imageUrl = Array.isArray(output) ? toUrl(output[0]) : toUrl(output);
 
     if (!imageUrl) {
       return NextResponse.json({ error: "No image returned from model" }, { status: 500 });
