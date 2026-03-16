@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+import IORedis from "ioredis";
 
 export interface SiteConfig {
   laborFee: number;
@@ -16,16 +16,6 @@ const DEFAULT_CONFIG: SiteConfig = {
   replicateModelId: "",
 };
 
-function getRedis(): Redis | null {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return null;
-  }
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  });
-}
-
 function getLocalConfig(): SiteConfig {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -39,32 +29,40 @@ function getLocalConfig(): SiteConfig {
   }
 }
 
-function saveLocalConfig(config: SiteConfig): void {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fs = require("fs") as typeof import("fs");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const path = require("path") as typeof import("path");
-  fs.writeFileSync(path.join(process.cwd(), "config.json"), JSON.stringify(config, null, 2));
+async function withRedis<T>(fn: (redis: IORedis) => Promise<T>): Promise<T | null> {
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  const redis = new IORedis(url, { maxRetriesPerRequest: 2, enableReadyCheck: false });
+  try {
+    return await fn(redis);
+  } finally {
+    redis.disconnect();
+  }
 }
 
 export async function getConfig(): Promise<SiteConfig> {
-  const redis = getRedis();
-  if (redis) {
-    const stored = await redis.get<SiteConfig>(CONFIG_KEY);
-    if (stored) return stored;
-    // First run: seed Redis with defaults from config.json
+  const result = await withRedis(async (redis) => {
+    const stored = await redis.get(CONFIG_KEY);
+    if (stored) return JSON.parse(stored) as SiteConfig;
+    // First run: seed Redis from config.json defaults
     const local = getLocalConfig();
-    await redis.set(CONFIG_KEY, local);
+    await redis.set(CONFIG_KEY, JSON.stringify(local));
     return local;
-  }
-  return getLocalConfig();
+  });
+  return result ?? getLocalConfig();
 }
 
 export async function saveConfig(config: SiteConfig): Promise<void> {
-  const redis = getRedis();
-  if (redis) {
-    await redis.set(CONFIG_KEY, config);
-    return;
+  const saved = await withRedis(async (redis) => {
+    await redis.set(CONFIG_KEY, JSON.stringify(config));
+    return true;
+  });
+  if (!saved) {
+    // Local dev fallback
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    fs.writeFileSync(path.join(process.cwd(), "config.json"), JSON.stringify(config, null, 2));
   }
-  saveLocalConfig(config);
 }
