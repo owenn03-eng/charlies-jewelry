@@ -8,7 +8,7 @@ function isAuthorized(req: NextRequest): boolean {
 
 export async function GET() {
   try {
-    const config = getConfig();
+    const config = await getConfig();
     return NextResponse.json(config);
   } catch {
     return NextResponse.json({ error: "Failed to read config" }, { status: 500 });
@@ -22,14 +22,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json() as Partial<SiteConfig>;
-    const current = getConfig();
+    const current = await getConfig();
     const updated: SiteConfig = {
       laborFee: body.laborFee ?? current.laborFee,
       shippingFee: body.shippingFee ?? current.shippingFee,
       markupMultiplier: body.markupMultiplier ?? current.markupMultiplier,
       replicateModelId: body.replicateModelId ?? current.replicateModelId,
     };
-    saveConfig(updated);
+    await saveConfig(updated);
     return NextResponse.json(updated);
   } catch {
     return NextResponse.json({ error: "Failed to save config" }, { status: 500 });

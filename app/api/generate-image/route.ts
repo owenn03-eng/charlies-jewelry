@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const config = getConfig();
+  const config = await getConfig();
 
   if (!config.replicateModelId) {
     return NextResponse.json(

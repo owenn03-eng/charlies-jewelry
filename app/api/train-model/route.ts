@@ -64,9 +64,8 @@ export async function POST(req: NextRequest) {
     );
 
     // Store the training ID and destination so admin can check status
-    const config = getConfig();
-    // We'll store the pending model info; once training completes the model version will be set
-    saveConfig({ ...config, replicateModelId: `${destination}:PENDING-${training.id}` });
+    const config = await getConfig();
+    await saveConfig({ ...config, replicateModelId: `${destination}:PENDING-${training.id}` });
 
     return NextResponse.json({
       trainingId: training.id,
@@ -101,12 +100,12 @@ export async function GET(req: NextRequest) {
     if (training.status === "succeeded" && training.output) {
       const output = training.output as { version?: string };
       if (output.version) {
-        const config = getConfig();
+        const config = await getConfig();
         // Extract destination from the stored pending model ID
         const stored = config.replicateModelId;
         const destination = stored.split(":PENDING-")[0];
         const fullModelId = `${destination}:${output.version}`;
-        saveConfig({ ...config, replicateModelId: fullModelId });
+        await saveConfig({ ...config, replicateModelId: fullModelId });
         return NextResponse.json({ status: training.status, modelId: fullModelId });
       }
     }
