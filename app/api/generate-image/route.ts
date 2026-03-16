@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getReplicateClient, buildRingPrompt, buildNegativePrompt } from "@/lib/replicate";
+import { getReplicateClient, buildRingPrompt } from "@/lib/replicate";
 import { getConfig } from "@/lib/config";
 
 interface GenerateBody {
@@ -25,25 +25,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (config.replicateModelId.includes(":PENDING-")) {
+    return NextResponse.json(
+      { error: "Model is still training. Check /admin for status." },
+      { status: 503 }
+    );
+  }
+
   const prompt = buildRingPrompt(body.bandStyle, body.finish, body.initials);
-  const negativePrompt = buildNegativePrompt();
 
   try {
     const replicate = getReplicateClient();
 
-    // Model ID format: "owner/model:version"
+    // Flux-based models use guidance_scale ~3.5 and don't support negative_prompt
     const output = await replicate.run(config.replicateModelId as `${string}/${string}:${string}`, {
       input: {
         prompt,
-        negative_prompt: negativePrompt,
-        num_inference_steps: 30,
-        guidance_scale: 7.5,
+        num_inference_steps: 28,
+        guidance_scale: 3.5,
         width: 1024,
         height: 1024,
       },
     });
 
-    // Replicate returns an array of image URLs or a single URL
     const imageUrl = Array.isArray(output)
       ? (output as unknown as string[])[0]
       : (output as unknown as string);
@@ -54,7 +58,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ imageUrl });
   } catch (err) {
-    console.error("generate-image error:", err);
-    return NextResponse.json({ error: "Image generation failed" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("generate-image error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

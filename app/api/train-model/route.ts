@@ -4,6 +4,9 @@ import { getConfig, saveConfig } from "@/lib/config";
 import { put } from "@vercel/blob";
 import JSZip from "jszip";
 
+// Extend timeout — downloading + zipping photos can take 30-60s
+export const maxDuration = 60;
+
 function isAuthorized(req: NextRequest): boolean {
   const password = req.headers.get("x-admin-password");
   return password === process.env.ADMIN_PASSWORD;

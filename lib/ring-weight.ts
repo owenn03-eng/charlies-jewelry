@@ -59,5 +59,6 @@ export function calcPrice(
   return silverCost + laborFee + shippingFee;
 }
 
-export const US_RING_SIZES = Object.keys(RING_SIZE_TO_DIAMETER_MM).map(Number);
+// Explicit sorted array — Object.keys() puts integers before decimals, scrambling the order
+export const US_RING_SIZES = [5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13];
 export const SILVER_GAUGES = Object.keys(GAUGE_TO_WIRE_DIAMETER_MM);

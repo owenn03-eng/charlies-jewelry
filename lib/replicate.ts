@@ -6,6 +6,9 @@ export function getReplicateClient(): Replicate {
   return new Replicate({ auth: token });
 }
 
+// CHARJEWEL is the trigger word the LoRA was trained with — must appear in every prompt
+const TRIGGER_WORD = "CHARJEWEL";
+
 export function buildRingPrompt(bandStyle: string, finish: string, initials?: string): string {
   let styleDesc = "";
   if (bandStyle === "plain") {
@@ -25,15 +28,8 @@ export function buildRingPrompt(bandStyle: string, finish: string, initials?: st
         : "brushed matte satin finish";
 
   return (
-    `sterling silver ring, ${styleDesc}, ${finishDesc}, ` +
+    `${TRIGGER_WORD} sterling silver ring, ${styleDesc}, ${finishDesc}, ` +
     `close-up professional jewelry photography, white seamless background, ` +
     `studio lighting, sharp focus, photorealistic, high resolution`
-  );
-}
-
-export function buildNegativePrompt(): string {
-  return (
-    "gold, yellow metal, gemstone, stone, blurry, cartoon, illustration, " +
-    "dark background, human hand, watermark, text overlay"
   );
 }
