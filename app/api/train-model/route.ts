@@ -128,7 +128,11 @@ export async function GET(req: NextRequest) {
         const config = await getConfig();
         const stored = config.replicateModelId;
         const destination = stored.split(":PENDING-")[0];
-        const fullModelId = `${destination}:${output.version}`;
+        // output.version may be "owner/model:hash" — extract just the hash
+        const versionHash = output.version.includes(":")
+          ? output.version.split(":").pop()!
+          : output.version;
+        const fullModelId = `${destination}:${versionHash}`;
         await saveConfig({ ...config, replicateModelId: fullModelId });
         return NextResponse.json({ status: training.status, modelId: fullModelId });
       }

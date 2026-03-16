@@ -32,13 +32,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Fix malformed IDs where destination was duplicated: "owner/model:owner/model:hash"
+  // Split on ":" and reconstruct as first-segment:last-segment
+  const idParts = config.replicateModelId.split(":");
+  const modelId = idParts.length > 2
+    ? `${idParts[0]}:${idParts[idParts.length - 1]}`
+    : config.replicateModelId;
+
   const prompt = buildRingPrompt(body.bandStyle, body.finish, body.initials);
 
   try {
     const replicate = getReplicateClient();
 
     // Flux-based models use guidance_scale ~3.5 and don't support negative_prompt
-    const output = await replicate.run(config.replicateModelId as `${string}/${string}:${string}`, {
+    const output = await replicate.run(modelId as `${string}/${string}:${string}`, {
       input: {
         prompt,
         num_inference_steps: 28,
