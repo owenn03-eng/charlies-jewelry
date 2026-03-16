@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     // Replicate requires the destination model to exist before training
     await replicate.models.create(replicateUsername, modelName, {
       visibility: "private",
-      hardware: "gpu-a40-large",
+      hardware: "gpu-l40s",
     });
 
     // Start LoRA training
