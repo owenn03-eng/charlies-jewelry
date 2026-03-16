@@ -24,13 +24,13 @@ export async function getSilverSpotPrice(): Promise<number> {
     rates: Record<string, number>;
   };
 
-  if (!data.success || !data.rates.USDXAG) {
+  if (!data.success || !data.rates.XAG) {
     throw new Error("Unexpected metals API response shape");
   }
 
-  // API returns USD per XAG (troy oz of silver)
-  // USDXAG is how many USD per 1 XAG
-  const pricePerTroyOz = data.rates.USDXAG;
+  // API returns XAG per USD (e.g. ~0.030 troy oz per $1)
+  // Invert to get USD per troy oz (e.g. ~$33/oz)
+  const pricePerTroyOz = 1 / data.rates.XAG;
 
   cachedPrice = pricePerTroyOz;
   cacheExpiresAt = Date.now() + CACHE_TTL_MS;
