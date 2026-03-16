@@ -32,24 +32,16 @@ export async function POST(req: NextRequest) {
   }
 
   const triggerWord = body.triggerWord ?? "CHARJEWEL";
-  const replicateUsername = process.env.REPLICATE_USERNAME;
-  if (!replicateUsername) {
-    return NextResponse.json({ error: "REPLICATE_USERNAME env var not set" }, { status: 500 });
+  const replicateModelName = process.env.REPLICATE_MODEL_NAME;
+  if (!replicateModelName) {
+    return NextResponse.json({ error: "REPLICATE_MODEL_NAME env var not set" }, { status: 500 });
   }
 
   try {
     const replicate = getReplicateClient();
+    const destination = replicateModelName as `${string}/${string}`;
 
-    const modelName = `charlies-jewelry-${Date.now()}`;
-    const destination = `${replicateUsername}/${modelName}` as `${string}/${string}`;
-
-    // Replicate requires the destination model to exist before training
-    await replicate.models.create(replicateUsername, modelName, {
-      visibility: "private",
-      hardware: "gpu-l40s",
-    });
-
-    // Start LoRA training
+    // Start LoRA training — destination model must already exist on Replicate
     const training = await replicate.trainings.create(
       "ostris",
       "flux-dev-lora-trainer",
