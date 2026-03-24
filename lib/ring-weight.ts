@@ -19,31 +19,34 @@ const RING_SIZE_TO_DIAMETER_MM: Record<number, number> = {
   13: 22.2,
 };
 
-// Wire gauge → diameter in mm (AWG standard)
-const GAUGE_TO_WIRE_DIAMETER_MM: Record<string, number> = {
-  "14g": 1.63,
-  "16g": 1.29,
-  "18g": 1.02,
-  "20g": 0.81,
-};
-
 // Silver density g/cm³
 const SILVER_DENSITY = 10.49;
 // Troy oz per gram
 const GRAMS_PER_TROY_OZ = 31.1035;
 
-export function calcRingWeightGrams(ringSizeUS: number, gauge: string): number {
+// Band width options in mm
+export const BAND_WIDTHS = [3, 4, 5, 6, 8] as const;
+export type BandWidth = typeof BAND_WIDTHS[number];
+
+// Band thickness options in mm
+export const BAND_THICKNESSES = [1.0, 1.5, 2.0] as const;
+export type BandThickness = typeof BAND_THICKNESSES[number];
+
+/**
+ * Flat band ring weight formula (hollow cylinder model):
+ * volume = π × widthCm × ((outerRadius² - innerRadius²))
+ * where outerRadius = innerRadius + thickness
+ */
+export function calcRingWeightGrams(ringSizeUS: number, widthMm: number, thicknessMm: number): number {
   const innerDiameterMm = RING_SIZE_TO_DIAMETER_MM[ringSizeUS];
-  const wireDiameterMm = GAUGE_TO_WIRE_DIAMETER_MM[gauge];
+  if (!innerDiameterMm) return 0;
 
-  if (!innerDiameterMm || !wireDiameterMm) return 0;
+  const innerRadiusCm = innerDiameterMm / 2 / 10;
+  const outerRadiusCm = innerRadiusCm + thicknessMm / 10;
+  const widthCm = widthMm / 10;
 
-  const wireRadiusCm = wireDiameterMm / 2 / 10;
-  // Ring center radius = inner radius + wire radius
-  const ringCenterRadiusCm = (innerDiameterMm / 2 + wireDiameterMm / 2) / 10;
-
-  // Torus volume: 2π² × R × r²
-  const volumeCm3 = 2 * Math.PI ** 2 * ringCenterRadiusCm * wireRadiusCm ** 2;
+  // Hollow cylinder: π × width × (outerR² - innerR²)
+  const volumeCm3 = Math.PI * widthCm * (outerRadiusCm ** 2 - innerRadiusCm ** 2);
   return volumeCm3 * SILVER_DENSITY;
 }
 
@@ -61,4 +64,3 @@ export function calcPrice(
 
 // Explicit sorted array — Object.keys() puts integers before decimals, scrambling the order
 export const US_RING_SIZES = [5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13];
-export const SILVER_GAUGES = Object.keys(GAUGE_TO_WIRE_DIAMETER_MM);
