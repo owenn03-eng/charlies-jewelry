@@ -22,7 +22,7 @@ interface Config {
 export default function RingConfigurator() {
   const [bandStyle, setBandStyle] = useState<BandStyle>("plain");
   const [ringSize, setRingSize] = useState<number>(7);
-  const [bandWidth, setBandWidth] = useState<number>(5);
+  const [bandWidthMm, setBandWidthMm] = useState<number>(6.35);
   const [bandThickness, setBandThickness] = useState<number>(1.5);
   const [finish, setFinish] = useState<FinishType>("polished");
   const [initials, setInitials] = useState("");
@@ -61,9 +61,9 @@ export default function RingConfigurator() {
     setFeedbackHistory([]);
     setRefinementRound(0);
     setPreviousImage(null);
-  }, [bandStyle, finish, bandWidth, bandThickness, ringSize]);
+  }, [bandStyle, finish, bandWidthMm, bandThickness, ringSize]);
 
-  const weightGrams = calcRingWeightGrams(ringSize, bandWidth, bandThickness);
+  const weightGrams = calcRingWeightGrams(ringSize, bandWidthMm, bandThickness);
 
   const totalPrice =
     silverPrice !== null && config !== null
@@ -221,15 +221,15 @@ export default function RingConfigurator() {
           <div className="flex gap-2 flex-wrap">
             {BAND_WIDTHS.map((w) => (
               <button
-                key={w}
-                onClick={() => setBandWidth(w)}
+                key={w.mm}
+                onClick={() => setBandWidthMm(w.mm)}
                 className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                  bandWidth === w
+                  bandWidthMm === w.mm
                     ? "border-amber-600 bg-amber-50 text-amber-800"
                     : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
                 }`}
               >
-                {w}mm
+                {w.label}
               </button>
             ))}
           </div>

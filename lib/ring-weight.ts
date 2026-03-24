@@ -24,9 +24,14 @@ const SILVER_DENSITY = 10.49;
 // Troy oz per gram
 const GRAMS_PER_TROY_OZ = 31.1035;
 
-// Band width options in mm
-export const BAND_WIDTHS = [3, 4, 5, 6, 8] as const;
-export type BandWidth = typeof BAND_WIDTHS[number];
+// Band width options (height on finger) in inches — displayed as fractions
+export const BAND_WIDTHS = [
+  { label: '1/4"', inches: 0.25, mm: 6.35 },
+  { label: '3/8"', inches: 0.375, mm: 9.525 },
+  { label: '1/2"', inches: 0.5, mm: 12.7 },
+  { label: '5/8"', inches: 0.625, mm: 15.875 },
+  { label: '3/4"', inches: 0.75, mm: 19.05 },
+] as const;
 
 // Band thickness options in mm
 export const BAND_THICKNESSES = [1.0, 1.5, 2.0] as const;
