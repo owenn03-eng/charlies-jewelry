@@ -3,9 +3,10 @@ import { getReplicateClient, buildRingPrompt } from "@/lib/replicate";
 import { getConfig } from "@/lib/config";
 
 interface GenerateBody {
-  bandStyle: string;
-  finish: string;
+  bandStyle?: string;
+  finish?: string;
   initials?: string;
+  customPrompt?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     ? `${idParts[0]}:${idParts[idParts.length - 1]}`
     : config.replicateModelId;
 
-  const prompt = buildRingPrompt(body.bandStyle, body.finish, body.initials);
+  const prompt = body.customPrompt ?? buildRingPrompt(body.bandStyle ?? "plain", body.finish ?? "polished", body.initials);
 
   try {
     const replicate = getReplicateClient();
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No image returned from model" }, { status: 500 });
     }
 
-    return NextResponse.json({ imageUrl });
+    return NextResponse.json({ imageUrl, prompt });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("generate-image error:", message);

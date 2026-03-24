@@ -8,7 +8,23 @@ export default function ImagePreview({ imageUrl, loading }: ImagePreviewProps) {
 
   return (
     <div className="rounded-xl border border-stone-200 overflow-hidden">
-      {loading ? (
+      {loading && imageUrl ? (
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt="Previous ring preview"
+            className="w-full object-cover max-h-[500px] opacity-50"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-sm text-stone-600">Refining your ring preview…</p>
+              <p className="text-xs text-stone-400">This may take 20–40 seconds</p>
+            </div>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="h-80 flex items-center justify-center bg-stone-100">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto" />

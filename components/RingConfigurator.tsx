@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { calcRingWeightGrams, calcPrice, US_RING_SIZES, SILVER_GAUGES } from "@/lib/ring-weight";
 import PriceQuote from "./PriceQuote";
 import ImagePreview from "./ImagePreview";
+import FeedbackForm from "./FeedbackForm";
 
 const BAND_STYLES = ["plain", "engraved initials", "fully engraved"] as const;
 type BandStyle = typeof BAND_STYLES[number];
@@ -33,6 +34,10 @@ export default function RingConfigurator() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
+  const [refinementRound, setRefinementRound] = useState(0);
+  const [previousImage, setPreviousImage] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/silver-price")
       .then((r) => r.json())
@@ -47,6 +52,13 @@ export default function RingConfigurator() {
       .then((d: Config) => setConfig(d))
       .catch(() => {/* config defaults used if unavailable */});
   }, []);
+
+  // Reset feedback state when configurator options change
+  useEffect(() => {
+    setCurrentPrompt(null);
+    setRefinementRound(0);
+    setPreviousImage(null);
+  }, [bandStyle, finish, gauge, ringSize]);
 
   const weightGrams = calcRingWeightGrams(ringSize, gauge);
 
@@ -66,9 +78,12 @@ export default function RingConfigurator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bandStyle, finish, initials: bandStyle === "engraved initials" ? initials : undefined }),
       });
-      const data = await res.json() as { imageUrl?: string; error?: string };
+      const data = await res.json() as { imageUrl?: string; prompt?: string; error?: string };
       if (data.imageUrl) {
         setGeneratedImage(data.imageUrl);
+        setCurrentPrompt(data.prompt ?? null);
+        setRefinementRound(0);
+        setPreviousImage(null);
       } else {
         setGenerateError(data.error ?? "Generation failed");
       }
@@ -78,6 +93,48 @@ export default function RingConfigurator() {
       setGenerating(false);
     }
   }, [bandStyle, finish, initials]);
+
+  const handleRefine = useCallback(async (feedback: string) => {
+    if (!currentPrompt) return;
+
+    setGenerating(true);
+    setGenerateError(null);
+    setPreviousImage(generatedImage);
+
+    try {
+      // Step 1: Get refined prompt from Claude
+      const refineRes = await fetch("/api/refine-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPrompt, feedback }),
+      });
+      const refineData = await refineRes.json() as { refinedPrompt?: string; error?: string };
+      if (refineData.error || !refineData.refinedPrompt) {
+        setGenerateError(refineData.error ?? "Failed to refine prompt");
+        return;
+      }
+
+      // Step 2: Generate image with the refined prompt
+      const genRes = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customPrompt: refineData.refinedPrompt }),
+      });
+      const genData = await genRes.json() as { imageUrl?: string; prompt?: string; error?: string };
+      if (genData.imageUrl) {
+        setGeneratedImage(genData.imageUrl);
+        setCurrentPrompt(refineData.refinedPrompt);
+        setRefinementRound((r) => r + 1);
+        setPreviousImage(null);
+      } else {
+        setGenerateError(genData.error ?? "Generation failed");
+      }
+    } catch {
+      setGenerateError("Network error — please try again");
+    } finally {
+      setGenerating(false);
+    }
+  }, [currentPrompt, generatedImage]);
 
   return (
     <div className="max-w-3xl mx-auto py-12 px-4 space-y-10">
@@ -195,7 +252,15 @@ export default function RingConfigurator() {
         )}
       </div>
 
-      <ImagePreview imageUrl={generatedImage} loading={generating} />
+      <ImagePreview imageUrl={generating && previousImage ? previousImage : generatedImage} loading={generating} />
+
+      {generatedImage && !generating && (
+        <FeedbackForm
+          onSubmit={handleRefine}
+          loading={generating}
+          round={refinementRound}
+        />
+      )}
     </div>
   );
 }
