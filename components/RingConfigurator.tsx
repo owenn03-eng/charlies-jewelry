@@ -34,7 +34,8 @@ export default function RingConfigurator() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
+  const [originalPrompt, setOriginalPrompt] = useState<string | null>(null);
+  const [feedbackHistory, setFeedbackHistory] = useState<string[]>([]);
   const [refinementRound, setRefinementRound] = useState(0);
   const [previousImage, setPreviousImage] = useState<string | null>(null);
 
@@ -55,7 +56,8 @@ export default function RingConfigurator() {
 
   // Reset feedback state when configurator options change
   useEffect(() => {
-    setCurrentPrompt(null);
+    setOriginalPrompt(null);
+    setFeedbackHistory([]);
     setRefinementRound(0);
     setPreviousImage(null);
   }, [bandStyle, finish, gauge, ringSize]);
@@ -81,7 +83,8 @@ export default function RingConfigurator() {
       const data = await res.json() as { imageUrl?: string; prompt?: string; error?: string };
       if (data.imageUrl) {
         setGeneratedImage(data.imageUrl);
-        setCurrentPrompt(data.prompt ?? null);
+        setOriginalPrompt(data.prompt ?? null);
+        setFeedbackHistory([]);
         setRefinementRound(0);
         setPreviousImage(null);
       } else {
@@ -95,18 +98,19 @@ export default function RingConfigurator() {
   }, [bandStyle, finish, initials]);
 
   const handleRefine = useCallback(async (feedback: string) => {
-    if (!currentPrompt) return;
+    if (!originalPrompt) return;
 
+    const newHistory = [...feedbackHistory, feedback];
     setGenerating(true);
     setGenerateError(null);
     setPreviousImage(generatedImage);
 
     try {
-      // Step 1: Get refined prompt from Claude
+      // Step 1: Get refined prompt from Claude (always from original + full history)
       const refineRes = await fetch("/api/refine-prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPrompt, feedback }),
+        body: JSON.stringify({ originalPrompt, feedbackHistory: newHistory }),
       });
       const refineData = await refineRes.json() as { refinedPrompt?: string; error?: string };
       if (refineData.error || !refineData.refinedPrompt) {
@@ -123,7 +127,7 @@ export default function RingConfigurator() {
       const genData = await genRes.json() as { imageUrl?: string; prompt?: string; error?: string };
       if (genData.imageUrl) {
         setGeneratedImage(genData.imageUrl);
-        setCurrentPrompt(refineData.refinedPrompt);
+        setFeedbackHistory(newHistory);
         setRefinementRound((r) => r + 1);
         setPreviousImage(null);
       } else {
@@ -134,7 +138,7 @@ export default function RingConfigurator() {
     } finally {
       setGenerating(false);
     }
-  }, [currentPrompt, generatedImage]);
+  }, [originalPrompt, feedbackHistory, generatedImage]);
 
   return (
     <div className="max-w-3xl mx-auto py-12 px-4 space-y-10">

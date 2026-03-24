@@ -2,18 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 interface RefineBody {
-  currentPrompt: string;
-  feedback: string;
+  originalPrompt: string;
+  feedbackHistory: string[];
 }
 
 const SYSTEM_PROMPT = `You rewrite text-to-image prompts for a sterling silver ring jewelry generator.
 
+You will receive the ORIGINAL base prompt and a list of ALL user feedback requests (in order). Your job is to produce a single refined prompt that starts from the original and applies every piece of feedback.
+
 Rules:
 1. Your output is ONLY the rewritten prompt. No explanation, no quotes, no markdown.
 2. The prompt MUST begin with the word "CHARJEWEL".
-3. Preserve all aspects of the current prompt that the user did not ask to change.
-4. Apply the user's feedback as modifications to the current prompt.
-5. Always end with: "close-up professional jewelry photography, white seamless background, studio lighting, sharp focus, photorealistic, high resolution"`;
+3. Start from the original prompt every time. Apply all feedback on top of it.
+4. Be extremely specific and concrete in your descriptions. Instead of vague words like "detailed" or "intricate", describe exactly what something looks like (shape, pattern, texture, placement).
+5. If the user asks for a specific shape or element (e.g. "lightning bolt"), describe it precisely: material, size relative to the ring, where it sits, how it's rendered.
+6. Keep the prompt focused. Do not add details the user didn't ask for. Do not embellish.
+7. Always end with: "close-up professional jewelry photography, white seamless background, studio lighting, sharp focus, photorealistic, high resolution"`;
 
 export async function POST(req: NextRequest) {
   let body: RefineBody;
@@ -23,8 +27,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!body.currentPrompt || !body.feedback) {
-    return NextResponse.json({ error: "Missing currentPrompt or feedback" }, { status: 400 });
+  if (!body.originalPrompt || !body.feedbackHistory?.length) {
+    return NextResponse.json({ error: "Missing originalPrompt or feedbackHistory" }, { status: 400 });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `Current prompt:\n${body.currentPrompt}\n\nUser feedback:\n${body.feedback}`,
+          content: `Original prompt:\n${body.originalPrompt}\n\nUser feedback (apply all of these):\n${body.feedbackHistory.map((f, i) => `${i + 1}. ${f}`).join("\n")}`,
         },
       ],
     });
