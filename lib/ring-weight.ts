@@ -33,9 +33,13 @@ export const BAND_WIDTHS = [
   { label: '3/4"', inches: 0.75, mm: 19.05 },
 ] as const;
 
-// Band thickness options in mm
-export const BAND_THICKNESSES = [1.0, 1.5, 2.0] as const;
-export type BandThickness = typeof BAND_THICKNESSES[number];
+// Gauge options — maps gauge label to thickness in mm
+export const GAUGES = [
+  { label: "18g", mm: 1.02 },
+  { label: "16g", mm: 1.29 },
+  { label: "14g", mm: 1.63 },
+  { label: "12g", mm: 2.05 },
+] as const;
 
 /**
  * Flat band ring weight formula (hollow cylinder model):

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { calcRingWeightGrams, calcPrice, US_RING_SIZES, BAND_WIDTHS, BAND_THICKNESSES } from "@/lib/ring-weight";
+import { calcRingWeightGrams, calcPrice, US_RING_SIZES, BAND_WIDTHS, GAUGES } from "@/lib/ring-weight";
 import PriceQuote from "./PriceQuote";
 import ImagePreview from "./ImagePreview";
 import FeedbackForm from "./FeedbackForm";
@@ -23,7 +23,7 @@ export default function RingConfigurator() {
   const [bandStyle, setBandStyle] = useState<BandStyle>("plain");
   const [ringSize, setRingSize] = useState<number>(7);
   const [bandWidthMm, setBandWidthMm] = useState<number>(6.35);
-  const [bandThickness, setBandThickness] = useState<number>(1.5);
+  const [gaugeMm, setGaugeMm] = useState<number>(1.29);
   const [finish, setFinish] = useState<FinishType>("polished");
   const [initials, setInitials] = useState("");
 
@@ -61,9 +61,9 @@ export default function RingConfigurator() {
     setFeedbackHistory([]);
     setRefinementRound(0);
     setPreviousImage(null);
-  }, [bandStyle, finish, bandWidthMm, bandThickness, ringSize]);
+  }, [bandStyle, finish, bandWidthMm, gaugeMm, ringSize]);
 
-  const weightGrams = calcRingWeightGrams(ringSize, bandWidthMm, bandThickness);
+  const weightGrams = calcRingWeightGrams(ringSize, bandWidthMm, gaugeMm);
 
   const totalPrice =
     silverPrice !== null && config !== null
@@ -235,21 +235,21 @@ export default function RingConfigurator() {
           </div>
         </div>
 
-        {/* Band Thickness */}
+        {/* Gauge */}
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-stone-700">Band Thickness</label>
+          <label className="block text-sm font-semibold text-stone-700">Gauge</label>
           <div className="flex gap-2 flex-wrap">
-            {BAND_THICKNESSES.map((t) => (
+            {GAUGES.map((g) => (
               <button
-                key={t}
-                onClick={() => setBandThickness(t)}
+                key={g.mm}
+                onClick={() => setGaugeMm(g.mm)}
                 className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                  bandThickness === t
+                  gaugeMm === g.mm
                     ? "border-amber-600 bg-amber-50 text-amber-800"
                     : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
                 }`}
               >
-                {t}mm
+                {g.label}
               </button>
             ))}
           </div>
